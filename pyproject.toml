@@ -1,0 +1,10 @@
+[tool.pyright]
+include = ["src"]
+ignore = ["**/typings"]
+exclude = ["**/typings"]
+typeCheckingMode = "basic"
+stubPath = "typings"
+typeshedPath = "typings"
+pythonPlatform = "All"
+reportMissingModuleSource = "none"
+reportUnnecessaryTypeIgnoreComment = "error"

@@ -1,4 +1,7 @@
 settings = {
     'ssid': '',
-    'pass': '',
+    'passphrase': '',
+    'c2server': '',
+    'c2user': '',
+    'c2pass': '',
 }

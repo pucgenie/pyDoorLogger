@@ -35,7 +35,9 @@ try:
 	print(wlan.ipconfig("addr6"))
 	
 	import requests
-	requests.post(, auth=('', '',),)
+	bootedResponse = requests.post(url=f'${settings.c2server}/booted', data=f'', auth=(settings.c2user, settings.c2pass,),)
+	bootedResponse.status_code
+
 	
 except ImportError as impErr:
 	# TODO: default settings? AP mode for config? Blink LED?
