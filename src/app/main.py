@@ -2,6 +2,11 @@
 #machine.freq(15_625_000)
 #machine.freq(16_000_000)
 
+# is already imported by bootstrapper, but pylance doesn't know
+import machine
+import micropython
+# pylance end.
+
 led_onboard = machine.Pin('LED', machine.Pin.OUT)
 
 import network

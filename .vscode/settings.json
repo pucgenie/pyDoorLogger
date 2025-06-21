@@ -1,0 +1,20 @@
+{
+    "python.languageServer": "Pylance",
+    /*
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingModuleSource": "none"
+    },
+    // https://micropython-stubs.readthedocs.io/en/main/11_install_stubs.html#install-stubs
+    //  pip install -U micropython-rp2-pico_w-stubs --no-user --target ./typings
+    "python.analysis.typeshedPaths": [
+        "~/.micropico-stubs/included",
+        "typings"
+    ],
+    "python.analysis.extraPaths": [
+        "~/.micropico-stubs/included"
+    ],
+    */
+    "python.terminal.activateEnvironment": false,
+    "micropico.openOnStart": true,
+}

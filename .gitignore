@@ -152,7 +152,7 @@ cython_debug/
 #.idea/
 
 #secrets
-/settings.py
+src/app/settings.py
 
 # VSCode mpytools
 typings/
