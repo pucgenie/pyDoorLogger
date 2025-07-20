@@ -1,7 +1,9 @@
+from settings_types import Wlan_network_meta, Command_and_control_server_meta
 settings = {
-    'ssid': '',
-    'passphrase': '',
-    'c2server': '',
-    'c2user': '',
-    'c2pass': '',
+    'wlans': [
+        Wlan_network_meta('ssid', 'passphrase',),
+    ],
+    'c2servers': [
+        Command_and_control_server_meta('server_url', 'username', 'password',),
+    ]
 }

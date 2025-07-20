@@ -5,11 +5,16 @@
 # is already imported by bootstrapper, but pylance doesn't know
 import machine
 import micropython
+import _thread
 # pylance end.
 
+# sys.stderr
+import sys
+
+# LED is on pin#25
 led_onboard = machine.Pin('LED', machine.Pin.OUT)
 
-import network
+import network # type: ignore
 network.ipconfig(prefer=6)
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
@@ -40,8 +45,24 @@ try:
 	print(wlan.ipconfig("addr6"))
 	
 	import requests
-	bootedResponse = requests.post(url=f'${settings.c2server}/booted', data=f'', auth=(settings.c2user, settings.c2pass,),)
-	bootedResponse.status_code
+	def backgroundConnectBooted():
+		try:
+			bootedResponse = requests.post(url=f'${settings['c2server']}/booted', data=f'', auth=(settings['c2user'], settings['c2pass'],),)
+		except requests.HTTPError as herr:
+			# incompatible server
+			# show status blink code
+			# and shutdown or something similar.
+			# But if we ignore a full ConnectionError here, it would be inconsistent behaviour.
+			print(herr, file=sys.stderr,)
+		except requests.Timeout as terr:
+			# self-explanatory.
+			# Just ignore like we do with ConnectionError.
+			print(terr, file=sys.stderr,)
+		except requests.ConnectionError as connerr:
+			# what now? This status is not really necessary for basic operation, so just log-and-ignore.
+			print(connerr, file=sys.stderr,)
+		bootedResponse.status_code
+	_thread.start_new_thread(backgroundConnectBooted, ())
 
 	
 except ImportError as impErr:
