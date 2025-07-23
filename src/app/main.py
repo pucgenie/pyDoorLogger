@@ -27,19 +27,41 @@ micropython.alloc_emergency_exception_buf(100)
 import asyncio
 
 class Core1Returner:
-	__slots__ = ('request_vector', 'task', 'finished_vector', 'result',)
+	__slots__ = ('request_vector', 'task', 'task_args', 'finished_vector', 'result',)
 	def __init__(self):
 		self.finished_vector = self.request_vector = -2^29
 	
 	def loopCore1(self):
-		while True:
+		while True: # microcontrollers never exit main in normal execution flow
 			while not self.task:
-				pass # lightsleep doesn't just pause core1.
-				# power consumption of core1 is below measurement error, so ... I don't care for sleeping in v1.
-			self.result = self.task()
+				machine.idle() # does it affect core0, too?
+				# power consumption of core1 is below measurement error, so ... I don't care for proper sleep in v1.
+			self.result = self.task(*self.task_args)
+			if self.finished_vector == 2^29-1:
+				self.finished_vector = -2^29
 			self.finished_vector += 1
+		_thread.exit()
+	
+	async def wait_until_available(self, timeout_ms:int=60000,):
+		"""
+		If core1 is busy at first, this method will pause for at least 1ms.
 
-	async def run(self, task,):
+		:param timeout_ms: the minimum time to wait, and may be exceeded (but could also exit at time) - depending on other scheduled cooperative tasks.
+		"""
+		# TODO: Would ThreadSafeFlag be the only correct choice here?
+		while self.finished_vector < self.request_vector:
+			await asyncio.sleep_ms(1)
+			timeout_ms -= 1
+			if timeout_ms == 0:
+				return False
+		else:
+			return True
+	
+	async def run(self, task, *task_args,):
+		"""
+		TODO: Check if heap allocation on core1 works in MicroPython. If not: Use mutable objects (a.k.a. buffers) as task_args...
+		"""
+		# this check is the only reason why we use vector timestamps
 		if self.finished_vector < self.request_vector:
 			raise SystemProgrammingException("wtf: previous task still running")
 		self.result = None
@@ -48,8 +70,8 @@ class Core1Returner:
 		self.request_vector += 1
 
 		self.task = task
-		while self.finished_vector < self.request_vector:
-			await asyncio.sleep_ms(1)
+		self.task_args = task_args
+		await self.wait_until_available()
 		return self.result
 
 core1 = Core1Returner()
@@ -96,9 +118,10 @@ try:
 	# IPv6 works, see https://github.com/micropython/micropython/commit/1c6012b0b5c62f18130217f30e73ad3ce4c8c9e6
 	print(wlan.ipconfig("addr6"))
 	
-	import requests
-	def backgroundConnectBooted():
+	async def backgroundConnectBooted():
+		import requests
 		try:
+			# TODO use aiohttp?
 			bootedResponse = requests.post(url=f'${settings['c2server']}/booted', data=f'', auth=(settings['c2user'], settings['c2pass'],),)
 		except requests.HTTPError as herr:
 			# incompatible server
@@ -113,8 +136,17 @@ try:
 		except requests.ConnectionError as connerr:
 			# what now? This status is not really necessary for basic operation, so just log-and-ignore.
 			print(connerr, file=sys.stderr,)
-		bootedResponse.status_code
-	_thread.start_new_thread(backgroundConnectBooted, ())
+		return bootedResponse.status_code
+	_thread.start_new_thread(core1.loopCore1, (core1,),)
+
+	def malCore1testen(*args):
+		return ("Jup, geht mal grundsätzlich.", len(args))
+	
+	async def mainTaskCore0():
+		dinge = await core1.run(malCore1testen)
+		print(dinge)
+	
+	asyncio.run(mainTaskCore0)
 
 	
 except ImportError as impErr:
