@@ -79,11 +79,10 @@ core1 = Core1Returner()
 # sys.stderr
 import sys
 
-# LED is on pin#25
-led_onboard = machine.Pin('LED', machine.Pin.OUT)
-
 import network # type: ignore
-network.ipconfig(prefer=6)
+network.ipconfig(
+	#prefer=6,
+	)
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
 
@@ -116,27 +115,45 @@ try:
 	print(wlan.ifconfig())
 	
 	# IPv6 works, see https://github.com/micropython/micropython/commit/1c6012b0b5c62f18130217f30e73ad3ce4c8c9e6
-	print(wlan.ipconfig("addr6"))
+	#print(wlan.ipconfig("addr6"))
 	
 	async def backgroundConnectBooted():
-		import requests
+		#import requests
 		try:
-			# TODO use aiohttp?
-			bootedResponse = requests.post(url=f'${settings['c2server']}/booted', data=f'', auth=(settings['c2user'], settings['c2pass'],),)
-		except requests.HTTPError as herr:
-			# incompatible server
-			# show status blink code
-			# and shutdown or something similar.
-			# But if we ignore a full ConnectionError here, it would be inconsistent behaviour.
-			print(herr, file=sys.stderr,)
-		except requests.Timeout as terr:
-			# self-explanatory.
-			# Just ignore like we do with ConnectionError.
-			print(terr, file=sys.stderr,)
-		except requests.ConnectionError as connerr:
-			# what now? This status is not really necessary for basic operation, so just log-and-ignore.
-			print(connerr, file=sys.stderr,)
-		return bootedResponse.status_code
+			import uaiohttpclient as aiohttp
+		except ImportError as idehelper:
+			# pylance workaround
+			import aiohttp
+		c2responses = []
+		for serverCfg in settings['c2servers']:
+			try:
+				async with aiohttp.ClientSession() as session:
+					async with session.post(
+							url=f'${serverCfg.server_url}/booted',
+							data=f'',
+							auth=(serverCfg.username, serverCfg.password,),
+							timeout=6,
+							) as response:
+						c2responses.append(response.status)
+						if response.status == 200:
+							response.json()
+			except requests.HTTPError as herr:
+				# incompatible server
+				# show status blink code
+				# and shutdown or something similar.
+				# But if we ignore a full ConnectionError here, it would be inconsistent behaviour.
+				print(herr, file=sys.stderr,)
+			except requests.Timeout as terr:
+				# self-explanatory.
+				# Just ignore like we do with ConnectionError.
+				print(terr, file=sys.stderr,)
+			except requests.ConnectionError as connerr:
+				# what now? This status is not really necessary for basic operation, so just log-and-ignore.
+				print(connerr, file=sys.stderr,)
+		# coherence check for number of responses
+		if len(settings['c2servers']) != len(c2responses):
+			raise SystemProgrammingException("Programmierer ist dumm")
+		return c2responses
 	_thread.start_new_thread(core1.loopCore1, (core1,),)
 
 	def malCore1testen(*args):
@@ -146,7 +163,8 @@ try:
 		dinge = await core1.run(malCore1testen)
 		print(dinge)
 	
-	asyncio.run(mainTaskCore0)
+	# https://docs.python.org/3/library/asyncio-task.html#:~:text=simply%20calling%20a%20coroutine%20will%20not%20schedule%20it
+	asyncio.run(mainTaskCore0())
 
 	
 except ImportError as impErr:
@@ -160,9 +178,9 @@ wlan.active(False)
 # while True:
 # 	# Since this function temporarily disables access to the external flash memory, it also temporarily disables interrupts and the other core to prevent them from trying to execute code from flash.
 # 	if rp2.bootsel_button() == 1:
-# 		led_onboard.on()
+# 		settings['leds']['onboard'].hwpin.on()
 # 	else:
-# 		led_onboard.off()
+# 		settings['leds']['onboard'].hwpin.off()
 # 	startTime = time.ticks_ms()
 # 	machine.lightsleep(383)
 # 	endTime = time.ticks_ms()

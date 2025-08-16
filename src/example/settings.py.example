@@ -1,9 +1,20 @@
-from settings_types import Wlan_network_meta, Command_and_control_server_meta
+from settings_types import Wlan_network_meta as WLAN, Command_and_control_server_meta as C2, Switch_output_meta as SW, Indicator_light_meta as INDICATOR
+from machine import Pin
 settings = {
-    'wlans': [
+    'wlans': (
         Wlan_network_meta('ssid', 'passphrase',),
-    ],
-    'c2servers': [
+    ),
+    'c2servers': (
         Command_and_control_server_meta('server_url', 'username', 'password',),
-    ]
+    )
+    'switches': {
+
+    },
+    'sensors': (
+
+    ),
+    'leds': {
+        'onboard': INDICATOR( # LED is on pin#25
+            Pin('LED', Pin.OUT,)),
+    },
 }
