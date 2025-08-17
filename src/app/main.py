@@ -127,12 +127,13 @@ try:
 		c2responses = []
 		for serverCfg in settings['c2servers']:
 			try:
+				# TODO: disable session connection pooling, or keep sessions.
 				async with aiohttp.ClientSession() as session:
 					async with session.post(
 							url=f'${serverCfg.server_url}/booted',
-							data=f'',
-							auth=(serverCfg.username, serverCfg.password,),
-							timeout=6,
+							data=b'',
+							auth=aiohttp.BasicAuth(serverCfg.username, serverCfg.password,),
+							timeout=aiohttp.ClientTimeout(total=None,sock_connect=3,sock_read=2),
 							) as response:
 						c2responses.append(response.status)
 						if response.status == 200:
@@ -166,6 +167,8 @@ try:
 	# https://docs.python.org/3/library/asyncio-task.html#:~:text=simply%20calling%20a%20coroutine%20will%20not%20schedule%20it
 	asyncio.run(mainTaskCore0())
 
+	# TODO: c2 server may send new config (push or poll/pull?). Config should be applied TEMPORARILY, and after rebooting with new temp config, that new config needs to be committed before timeout (5 minutes?).
+	# TODO: maybe implement web REPL?
 	
 except ImportError as impErr:
 	# TODO: default settings? AP mode for config? Blink LED?
