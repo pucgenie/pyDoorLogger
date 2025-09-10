@@ -14,6 +14,14 @@ import micropython
 import _thread
 # pylance end.
 
+# Sombay: Server soll den µC pollen. Monitoring via "Antwort-oder-keine-Antwort".
+# Wenn nicht erreichbar, Push-Benachrichtigung an den Admin.
+
+# Heartbeat ist sowieso notwendig. C2 commands könnten einfach da übertragen werden.
+
+# Goldcap und Überwachnung der Haupt-Stromversorgung. Bei Ausfall eventuell vorhandene ungesendete Daten serialisieren/persistieren.
+# 1,25Ws, 26mA (ohne WLAN, ca. 11s) und 327mA (mit WLAN, ca. 0.7s)
+
 class UserAttentionException(Exception):
 	def __init__(self, *args):
 		super().__init__(*args)
@@ -128,12 +136,13 @@ try:
 		for serverCfg in settings['c2servers']:
 			try:
 				# TODO: disable session connection pooling, or keep sessions.
-				async with aiohttp.ClientSession() as session:
+				async with aiohttp.ClientSession(
+						timeout=aiohttp.ClientTimeout(total=None,sock_connect=3,sock_read=2),
+					) as session:
 					async with session.post(
 							url=f'${serverCfg.server_url}/booted',
 							data=b'',
 							auth=aiohttp.BasicAuth(serverCfg.username, serverCfg.password,),
-							timeout=aiohttp.ClientTimeout(total=None,sock_connect=3,sock_read=2),
 							) as response:
 						c2responses.append(response.status)
 						if response.status == 200:
@@ -163,12 +172,13 @@ try:
 	async def mainTaskCore0():
 		dinge = await core1.run(malCore1testen)
 		print(dinge)
+		# TODO: check if unsent data was saved and send it now.
+
+		# TODO: c2 server may send new config (push or poll/pull?). Config should be applied TEMPORARILY, and after rebooting with new temp config, that new config needs to be committed by the server before timeout (5 minutes?).
+		# TODO: maybe implement web REPL?
 	
 	# https://docs.python.org/3/library/asyncio-task.html#:~:text=simply%20calling%20a%20coroutine%20will%20not%20schedule%20it
 	asyncio.run(mainTaskCore0())
-
-	# TODO: c2 server may send new config (push or poll/pull?). Config should be applied TEMPORARILY, and after rebooting with new temp config, that new config needs to be committed before timeout (5 minutes?).
-	# TODO: maybe implement web REPL?
 	
 except ImportError as impErr:
 	# TODO: default settings? AP mode for config? Blink LED?
@@ -190,3 +200,6 @@ wlan.active(False)
 # 	if time.ticks_diff(endTime, startTime,) >= 255:
 # 		print("lightsleep (somehow) worked")
 # 		break
+
+wait_pin = machine.Pin(15, machine.Pin.IN, machine.Pin.PULL_UP)
+if wait_pin.value(): machine.deepsleep() # may reset RAM and cause a reboot
